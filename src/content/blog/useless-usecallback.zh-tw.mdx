@@ -57,11 +57,11 @@ function Okay() {
 
 是的，有時候 `useMemo` 內部的計算本身就很慢，我們記憶化是為了避免那些重複計算。這些 `useMemo` 的使用完全沒問題，但我不認為它們是主要的使用場景。
 
-### 防止 effect 過於頻繁地觸發
+### 防止 `effect` 過於頻繁地觸發
 
-如果不是作為 prop 傳遞給記憶化的元件，我們記憶化的值很可能最終會被傳遞給 effect 的依賴項（有時會經過多層自定義 hook）。
+如果不是作為 `prop` 傳遞給記憶化的元件，我們記憶化的值很可能最終會被傳遞給 `effect` 的依賴項（有時會經過多層自定義 hook）。
 
-Effect 的依賴項遵循與 `React.memo` 相同的規則——它們使用 [Object.is](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) 逐一比較，以查看 effect 是否需要重新執行。所以如果我們不小心處理 effect 依賴項的記憶化，它可能會在每次渲染時都執行。
+`effect` 的依賴項遵循與 `React.memo` 相同的規則——它們使用 [Object.is](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) 逐一比較，以查看 `effect` 是否需要重新執行。所以如果我們不小心處理 `effect` 依賴項的記憶化，它可能會在每次渲染時都執行。
 
 ---
 
@@ -71,7 +71,7 @@ Effect 的依賴項遵循與 `React.memo` 相同的規則——它們使用 [Obj
 
 我認為我們都可以在生活中使用一些穩定性，那麼在什麼情況下追求穩定性是毫無意義的呢？
 
-## 1. 沒有 memo - 沒有效能提升
+## 1. 沒有記憶化 - 沒有效能提升
 
 讓我們拿上面的例子，做一個小小的改變：
 
@@ -107,13 +107,13 @@ function MyButton() {
 
 所以如果你的自定義元件沒有被記憶化，它應該也不在乎引用穩定性！
 
-等等——但如果那個 `Component` 在內部使用這些 props 來進行 `useEffect`，或者創建進一步的記憶化值，然後傳遞給它自己子元件的記憶化元件呢？如果我現在移除這些記憶化，我可能會破壞某些東西！
+等等——但如果那個 `Component` 在內部使用這些 `props` 來進行 `useEffect`，或者創建進一步的記憶化值，然後傳遞給它自己子元件的記憶化元件呢？如果我現在移除這些記憶化，我可能會破壞某些東西！
 
 這就引出了第二點：
 
-## 2. 使用 props 作為依賴項
+## 2. 使用 `props` 作為依賴項
 
-將你獲得的非原始 `props` 添加到內部依賴陣列中很少是正確的，因為這個元件無法控制這些 props 的引用穩定性。一個常見的例子是：
+將你獲得的非原始 `props` 添加到內部依賴陣列中很少是正確的，因為這個元件無法控制這些 `props` 的引用穩定性。一個常見的例子是：
 
 ```tsx title=props-as-dependencies
 function OhNo({ onChange }) {
@@ -137,9 +137,9 @@ function OhNo({ onChange }) {
 
 這是一個無辜的用法。它沒有任何問題。事實上，它很棒。它將想要做的事情與事件處理器放在一起。它避免了將東西提取到文件頂部，使用那種難看的 `handleChange` 命名。
 
-開發者寫這段程式碼時，唯一能知道它會破壞某些記憶化的方式，就是深入元件內部查看 props 是如何被使用的。這太糟糕了。
+開發者寫這段程式碼時，唯一能知道它會破壞某些記憶化的方式，就是深入元件內部查看 `props` 是如何被使用的。這太糟糕了。
 
-其他修復方法包括「我們隨時都記憶化所有東西」的策略，或者有嚴格執行的命名慣例，如「mustBeMemoized」前綴用於需要引用穩定的 props。這些都不是很好的方案。
+其他修復方法包括「我們隨時都記憶化所有東西」的策略，或者有嚴格執行的命名慣例，如「mustBeMemoized」前綴用於需要引用穩定的 `props`。這些都不是很好的方案。
 
 ### 一個真實的例子
 
@@ -159,7 +159,7 @@ export function useHotkeys(hotkeys: Hotkey[]): {
 }
 ```
 
-這個自定義 hook 接收一個 `hotkeys` 陣列作為輸入，然後創建一個記憶化的 `onKeyDown` 函式，並傳遞給 effect。這個函式顯然是為了防止 effect 過於頻繁地觸發而記憶化的，但 `hotkeys` 是一個陣列意味著使用者必須手動記憶化它們。
+這個自定義 hook 接收一個 `hotkeys` 陣列作為輸入，然後創建一個記憶化的 `onKeyDown` 函式，並傳遞給 `effect`。這個函式顯然是為了防止 `effect` 過於頻繁地觸發而記憶化的，但 `hotkeys` 是一個陣列意味著使用者必須手動記憶化它們。
 
 我開始尋找所有 `useHotkeys` 的使用情況，驚喜地發現[除了一個](https://github.com/getsentry/sentry/blob/a80e48ce659dea903e4d9594420cde019b33b757/static/app/views/issueDetails/streamline/hooks/useCopyIssueDetails.tsx#L161-L172)之外，所有的都記憶化了輸入。然而，這不是完整的故事，因為如果我們看得更深，事情仍然會崩解。讓我們以[這個用法](https://github.com/getsentry/sentry/blob/97130081986520a2035882249b5670189d859dda/static/app/components/events/eventTagsAndScreenshot/screenshot/modal.tsx#L86)為例：
 
@@ -174,7 +174,7 @@ const paginateHotkeys = useMemo(() => {
 useHotkeys(paginateHotkeys)
 ```
 
-`useHotKeys` 傳遞了 `paginateHotkeys`，它是記憶化的，但它依賴於 `paginateItems`。那是從哪裡來的？嗯，它是另一個 `useCallback`，它[依賴於](https://github.com/getsentry/sentry/blob/97130081986520a2035882249b5670189d859dda/static/app/components/events/eventTagsAndScreenshot/screenshot/modal.tsx#L77) `screenshots` 和 `currentAttachmentIndex`。那 `screenshots` 是從哪裡來的？
+`useHotkeys` 傳遞了 `paginateHotkeys`，它是記憶化的，但它依賴於 `paginateItems`。那是從哪裡來的？嗯，它是另一個 `useCallback`，它[依賴於](https://github.com/getsentry/sentry/blob/97130081986520a2035882249b5670189d859dda/static/app/components/events/eventTagsAndScreenshot/screenshot/modal.tsx#L77) `screenshots` 和 `currentAttachmentIndex`。那 `screenshots` 是從哪裡來的？
 
 ```tsx title=breaking-memoization
 const screenshots = attachments.filter(({ name }) =>
@@ -188,13 +188,13 @@ const screenshots = attachments.filter(({ name }) =>
 
 我希望這個例子能說明為什麼我強烈反對應用記憶化。根據我的經驗，它太容易失效了。不值得。而且它給我們必須閱讀的所有程式碼增加了太多開銷和複雜性。
 
-這裡的修復方法不是也記憶化 `screenshots`。那只會把責任轉移到 `attachments`，而它是元件的一個 prop。在所有三個調用方，我們距離實際需要記憶化的地方（`useHotkeys`）至少有兩層。這變成了一場導航噩夢，最終，沒有人敢移除單個記憶化，因為我們無法知道它實際上在做什麼。
+這裡的修復方法不是也記憶化 `screenshots`。那只會把責任轉移到 `attachments`，而它是元件的一個 `prop`。在所有三個調用方，我們距離實際需要記憶化的地方（`useHotkeys`）至少有兩層。這變成了一場導航噩夢，最終，沒有人敢移除單個記憶化，因為我們無法知道它實際上在做什麼。
 
 如果有什麼的話，我們必須把所有這些外包給[編譯器](https://react.dev/learn/react-compiler)，一旦我們讓它在所有地方都能工作，那就太棒了。但在那之前，我們必須找到模式來繞過需要引用穩定性的限制：
 
 ### Latest Ref 模式
 
-我之前[寫過這個模式](refs-events-and-escape-hatches#the-latest-ref)；我們做的基本上是將我們想要在 effect 中獲得命令式存取的值存儲在一個 ref 中，然後用另一個故意在每次渲染時都執行的 effect 來更新這個值：
+我之前[寫過這個模式](refs-events-and-escape-hatches#the-latest-ref)；我們做的基本上是將我們想要在 `effect` 中獲得命令式存取的值存儲在一個 ref 中，然後用另一個故意在每次渲染時都執行的 `effect` 來更新這個值：
 
 ```tsx title=the-latest-ref {2-6}
 export function useHotkeys(hotkeys: Hotkey[]): {
@@ -216,13 +216,13 @@ export function useHotkeys(hotkeys: Hotkey[]): {
 }
 ```
 
-然後，我們可以在 effect 中使用 `hotkeysRef`，而不必將它添加到依賴陣列中，也不必擔心如果我們只是忽略 linter 可能會遇到的[過時閉包](hooks-dependencies-and-stale-closures)問題。
+然後，我們可以在 `effect` 中使用 `hotkeysRef`，而不必將它添加到依賴陣列中，也不必擔心如果我們只是忽略 `linter` 可能會遇到的[過時閉包](hooks-dependencies-and-stale-closures)問題。
 
 React Query 也使用這個模式來追蹤傳入的最新選項，例如在 [PersistQueryClientProvider](https://github.com/TanStack/query/blob/dfbda9de66230e67b7e1c2f07e24eb5859ea14cb/packages/react-query-persist-client/src/PersistQueryClientProvider.tsx#L29-L31) 或 [useMutationState](https://github.com/TanStack/query/blob/34eedd601c7b19ac6a9fb8ab9c1ec0b600c2b95f/packages/react-query/src/useMutationState.ts#L53-L55) 中，所以我認為這是一個經過驗證的模式。想像一下如果這個函式庫需要使用者手動記憶化他們的 `options`...
 
 ### UseEffectEvent
 
-還有更多好消息：React 已經意識到，我們經常需要在響應式 effect 中命令式地存取某些東西的最新值，而不需要明確地重新觸發它，所以他們將為這個用例添加這個模式作為一等原語，[useEffectEvent](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event)。
+還有更多好消息：React 已經意識到，我們經常需要在響應式 `effect` 中命令式地存取某些東西的最新值，而不需要明確地重新觸發它，所以他們將為這個用例添加這個模式作為一等原語，[useEffectEvent](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event)。
 
 一旦它發布，我們可以將程式碼重構為：
 
