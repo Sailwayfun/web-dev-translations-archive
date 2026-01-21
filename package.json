@@ -10,7 +10,9 @@
     "cf:preview": "npm run build && npx wrangler pages dev ./dist",
     "cf:deploy": "npx astro build && npx wrangler pages deploy ./dist",
     "format": "prettier --write .",
-    "lint": "eslint . --max-warnings=0"
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.12",
