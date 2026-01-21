@@ -3,4 +3,10 @@ import mdx from '@astrojs/mdx'
 
 export default defineConfig({
   integrations: [mdx()],
+  markdown: {
+    syntaxHighlight: 'shiki',
+    shikiConfig: {
+      theme: 'rose-pine-dawn',
+    },
+  },
 })
