@@ -1,0 +1,27 @@
+---
+const { name, url } = Astro.props
+---
+
+<p class="attribution">
+  Photo by <a href={url} rel="noreferrer" target="_blank">{name}</a>
+</p>
+
+<style>
+  .attribution {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+  }
+
+  .attribution a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--ink) 35%, transparent);
+  }
+
+  .attribution a:hover {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+</style>
