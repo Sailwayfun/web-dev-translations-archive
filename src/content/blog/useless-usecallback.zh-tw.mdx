@@ -21,7 +21,7 @@ import Attribution from '../../components/Attribution.astro'
 
 ---
 
-我本來以為自己已經寫了很多關於記憶化的內容，但最近又一直看到一種模式，讓我覺得還是得再說一次。所以今天想聊聊 `useCallback`，以及某種程度上的 `useMemo`，在我認為它們完全沒意義的情境下到底發生了什麼。
+我本來以為自己已經寫了很多關於記憶化的內容，但最近又一直看到一種模式，讓我覺得還是得再說一次。所以今天想聊聊 `useCallback`，以及略提 `useMemo`，闡述我認為它們在哪些情境下完全沒有意義。
 
 ## 為什麼要記憶化？
 
@@ -35,7 +35,7 @@ import Attribution from '../../components/Attribution.astro'
 
 因此我們有時會用 `React.memo` 包元件。這是一場[艱苦的戰鬥](https://tkdodo.eu/blog/the-uphill-battle-of-memoization)，多半不值得打，但它確實存在。
 
-如果我們把函式或非原始值傳給記憶化元件，就得確保這些引用是**穩定的**。原因是 React 會用 [Object.is](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) 比較記憶化元件的 props，判斷是否能跳過渲染子樹。若引用不穩定，例如每次渲染都重新建立，記憶化就會「失效」：
+如果我們把函式或非原始值 (譯注：例如物件或陣列) 傳給記憶化元件，就得確保這些引用是**穩定的**。原因是 React 會用 [Object.is](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) 比較記憶化元件的 props，判斷是否能跳過渲染子樹。若引用不穩定，例如每次渲染都重新建立，記憶化就會「失效」：
 
 ```tsx title=performance-optimization
 function Meh() {
@@ -143,7 +143,7 @@ function OhNo({ onChange }) {
 
 ### 一個真實案例
 
-我現在在 [sentry 程式碼庫](https://github.com/getsentry/sentry) 工作，它是開源的，所以我有很多真實案例可以連結。其中一個是 [useHotkeys](https://github.com/getsentry/sentry/blob/94f19a20bd5680ddc86b3e139853c3d505182b43/static/app/utils/useHotkeys.tsx) 自訂 hook。重要片段大概長這樣：
+我現在在 [Sentry](https://github.com/getsentry/sentry) 工作，它是開源的，所以我有很多真實案例可以連結。其中一個是 [useHotkeys](https://github.com/getsentry/sentry/blob/94f19a20bd5680ddc86b3e139853c3d505182b43/static/app/utils/useHotkeys.tsx) 自訂 hook。重要片段大概長這樣：
 
 ```tsx title=useHotkeys
 export function useHotkeys(hotkeys: Hotkey[]): {
@@ -190,7 +190,7 @@ const screenshots = attachments.filter(({ name }) =>
 
 這裡的修法不是把 `screenshots` 也記憶化。那只會把責任轉嫁給 `attachments`，而它是元件的 `prop`。在這三個呼叫點上，我們距離真正需要記憶化的地方（`useHotkeys`）至少還隔了兩層。最後會變成導航地獄，沒人敢移除任何記憶化，因為根本搞不清楚它到底在做什麼。
 
-如果可以的話，我們最好把這些事交給[編譯器](https://react.dev/learn/react-compiler)。一旦它能在所有地方運作，那會非常棒。但在那之前，我們得先找到能繞過「需要引用穩定性」這個限制的模式：
+如果可以的話，我們最好把這些事交給[編譯器（React Compiler）](https://react.dev/learn/react-compiler)。一旦它能在所有地方運作，那會非常棒。但在那之前，我們得先找到能繞過「需要引用穩定性」這個限制的模式：
 
 ### Latest Ref 模式
 
@@ -222,7 +222,7 @@ React Query 也用這個模式來追蹤最新的 options，例如在 [PersistQue
 
 ### UseEffectEvent
 
-還有好消息：React 已經意識到，我們常需要在響應式 `effect` 中命令式存取某些最新值，但又不想明確地重新觸發它，所以他們打算把這個模式做成一等原語：[useEffectEvent](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event)。
+還有好消息：React 已經意識到，我們常需要在響應式 `effect` 中命令式存取某些最新值，但又不想明確地重新觸發它，所以他們打算把這個模式做成一等原語（first-class primitive）：[useEffectEvent](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event)。
 
 等它發布後，我們就能把程式碼重構成：
 
