@@ -29,7 +29,7 @@ const { Content } = await post.render()
     </div>
 
     {post.data.banner ? (
-      <img src={post.data.banner} alt={post.data.title} />
+      <img src={post.data.banner} alt={post.data.title} style="width: 100%; height: 100%"/>
     ) : null}
 
     <Content />
