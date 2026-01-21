@@ -16,7 +16,7 @@ import Attribution from '../../components/Attribution.astro'
 
 <Attribution name="Nik Shuliahin" url="https://unsplash.com/@tjump" />
 
-- [#1: 記憶化的艱苦奮戰](the-uphill-battle-of-memoization)
+- [#1: 記憶化的艱苦奮戰](https://tkdodo.eu/blog/the-uphill-battle-of-memoization)
 - <b>#2: 無用的 useCallback</b>
 
 ---
@@ -33,7 +33,7 @@ import Attribution from '../../components/Attribution.astro'
 
 在 React 裡，很多時候慢的是子樹重新渲染，所以如果我們覺得這次渲染「沒有必要」，就會想辦法避開。
 
-因此我們有時會用 `React.memo` 包元件。這是一場[艱苦的戰鬥](the-uphill-battle-of-memoization)，多半不值得打，但它確實存在。
+因此我們有時會用 `React.memo` 包元件。這是一場[艱苦的戰鬥](https://tkdodo.eu/blog/the-uphill-battle-of-memoization)，多半不值得打，但它確實存在。
 
 如果我們把函式或非原始值傳給記憶化元件，就得確保這些引用是**穩定的**。原因是 React 會用 [Object.is](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is) 比較記憶化元件的 props，判斷是否能跳過渲染子樹。若引用不穩定，例如每次渲染都重新建立，記憶化就會「失效」：
 
@@ -194,7 +194,7 @@ const screenshots = attachments.filter(({ name }) =>
 
 ### Latest Ref 模式
 
-我之前[寫過這個模式](refs-events-and-escape-hatches#the-latest-ref)；做法基本上是把我們想在 `effect` 裡命令式存取的值放進 ref，然後用另一個刻意在每次渲染都會跑的 `effect` 來更新它：
+我之前[寫過這個模式](https://tkdodo.eu/blog/refs-events-and-escape-hatches#the-latest-ref)；做法基本上是把我們想在 `effect` 裡命令式存取的值放進 ref，然後用另一個刻意在每次渲染都會跑的 `effect` 來更新它：
 
 ```tsx title=the-latest-ref {2-6}
 export function useHotkeys(hotkeys: Hotkey[]): {
@@ -216,7 +216,7 @@ export function useHotkeys(hotkeys: Hotkey[]): {
 }
 ```
 
-接著我們就能在 `effect` 裡使用 `hotkeysRef`，不必把它放進依賴陣列，也不用擔心如果忽略 `linter` 會碰到[過時閉包](hooks-dependencies-and-stale-closures)問題。
+接著我們就能在 `effect` 裡使用 `hotkeysRef`，不必把它放進依賴陣列，也不用擔心如果忽略 `linter` 會碰到[過時閉包](https://tkdodo.eu/blog/hooks-dependencies-and-stale-closures)問題。
 
 React Query 也用這個模式來追蹤最新的 options，例如在 [PersistQueryClientProvider](https://github.com/TanStack/query/blob/dfbda9de66230e67b7e1c2f07e24eb5859ea14cb/packages/react-query-persist-client/src/PersistQueryClientProvider.tsx#L29-L31) 或 [useMutationState](https://github.com/TanStack/query/blob/34eedd601c7b19ac6a9fb8ab9c1ec0b600c2b95f/packages/react-query/src/useMutationState.ts#L53-L55) 裡，所以我認為這已經是被驗證過的模式。想像一下如果這個函式庫要求使用者手動記憶化 `options`...
 
