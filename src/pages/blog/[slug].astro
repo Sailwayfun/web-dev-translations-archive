@@ -19,18 +19,26 @@ const { Content } = await post.render()
     <h1 style="margin-top: 0;">{post.data.title}</h1>
     <div class="meta">
       <span>{post.data.date.toLocaleDateString('zh-TW')}</span>
-      {post.data.tags ? (
-        <span class="tags">
-          {post.data.tags.map((tag) => (
-            <span class="tag">{tag}</span>
-          ))}
-        </span>
-      ) : null}
+      {
+        post.data.tags ? (
+          <span class="tags">
+            {post.data.tags.map((tag) => (
+              <span class="tag">{tag}</span>
+            ))}
+          </span>
+        ) : null
+      }
     </div>
 
-    {post.data.banner ? (
-      <img src={post.data.banner} alt={post.data.title} />
-    ) : null}
+    {
+      post.data.banner ? (
+        <img
+          src={post.data.banner}
+          alt={post.data.title}
+          style="width: 100%; height: 100%"
+        />
+      ) : null
+    }
 
     <Content />
   </article>

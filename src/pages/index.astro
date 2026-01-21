@@ -17,24 +17,26 @@ const latest = posts[0]
       A single place to keep translated essays in a calm, readable frame.
     </p>
 
-    {latest ? (
-      <article class="prose" style="margin-top: 2.5rem;">
-        <h2 style="margin-top: 0;">{latest.data.title}</h2>
-        <p>{latest.data.description}</p>
-        <div class="meta">
-          <span>{latest.data.date.toLocaleDateString('zh-TW')}</span>
-          {latest.data.tags ? (
-            <span class="tags">
-              {latest.data.tags.map((tag) => (
-                <span class="tag">{tag}</span>
-              ))}
-            </span>
-          ) : null}
-        </div>
-        <a href={`/blog/${latest.slug}`}>Read the full article →</a>
-      </article>
-    ) : (
-      <p class="prose">No posts yet.</p>
-    )}
+    {
+      latest ? (
+        <article class="prose" style="margin-top: 2.5rem;">
+          <h2 style="margin-top: 0;">{latest.data.title}</h2>
+          <p>{latest.data.description}</p>
+          <div class="meta">
+            <span>{latest.data.date.toLocaleDateString('zh-TW')}</span>
+            {latest.data.tags ? (
+              <span class="tags">
+                {latest.data.tags.map((tag) => (
+                  <span class="tag">{tag}</span>
+                ))}
+              </span>
+            ) : null}
+          </div>
+          <a href={`/blog/${latest.slug}`}>Read the full article →</a>
+        </article>
+      ) : (
+        <p class="prose">No posts yet.</p>
+      )
+    }
   </section>
 </BaseLayout>

@@ -15,7 +15,7 @@ const metaDescription =
     <title>{pageTitle}</title>
     <meta name="description" content={metaDescription} />
     <link rel="icon" href="data:," />
-    <style>
+    <style is:global>
       @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Work+Sans:wght@350;420;500;600&display=swap');
 
       :root {
@@ -134,18 +134,69 @@ const metaDescription =
         margin: 1.5rem 0 0.5rem;
       }
 
-      .prose pre {
+      .prose pre,
+      pre.astro-code {
+        position: relative;
         background: #1f1c17;
         color: #f1e9df;
-        padding: 1.3rem;
-        border-radius: 16px;
-        overflow-x: auto;
+        padding: 2.4rem 1.5rem 1.5rem;
+        border-radius: 18px;
+        overflow: auto;
         font-size: 0.95rem;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      .prose pre code {
+        background: transparent;
+      }
+
+      .prose pre.astro-code {
+        background: #1f1c17;
       }
 
       .prose code {
         font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
         font-size: 0.95em;
+      }
+
+      .code-copy {
+        position: absolute;
+        inset: 0.6rem 0.6rem auto auto;
+        z-index: 2;
+        margin: 0;
+        border: 1px solid rgba(33, 31, 26, 0.2);
+        background: rgba(255, 255, 255, 0.75);
+        color: var(--ink);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 0.25rem 0.65rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        box-shadow: 0 8px 20px rgba(33, 31, 26, 0.18);
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .code-copy:hover {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(33, 31, 26, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .code-copy:active {
+        transform: translateY(0);
+      }
+
+      .code-copy.copied {
+        background: rgba(200, 124, 58, 0.35);
+        border-color: rgba(200, 124, 58, 0.55);
+        color: #3a2816;
       }
 
       .meta {
@@ -196,5 +247,42 @@ const metaDescription =
         <slot />
       </main>
     </div>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        const codeBlocks = document.querySelectorAll('pre')
+
+        codeBlocks.forEach((block) => {
+          if (block.querySelector('.code-copy')) return
+
+          const button = document.createElement('button')
+          button.type = 'button'
+          button.className = 'code-copy'
+          button.textContent = 'Copy'
+          button.setAttribute('aria-label', 'Copy code to clipboard')
+
+          button.addEventListener('click', async () => {
+            const code = block.querySelector('code')
+            const text = code ? code.textContent : block.textContent
+
+            if (!text) return
+
+            try {
+              await navigator.clipboard.writeText(text.trim())
+              button.classList.add('copied')
+              button.textContent = 'Copied'
+
+              window.setTimeout(() => {
+                button.classList.remove('copied')
+                button.textContent = 'Copy'
+              }, 1600)
+            } catch (error) {
+              console.error('Copy failed', error)
+            }
+          })
+
+          block.insertBefore(button, block.firstChild)
+        })
+      })
+    </script>
   </body>
 </html>
