@@ -117,10 +117,13 @@ function MyButton() {
 
 ```tsx title=props-as-dependencies
 function OhNo({ onChange }) {
-  const handleChange = useCallback((e: React.ChangeEvent) => {
-    trackAnalytics('changeEvent', e)
-    onChange?.(e)
-  }, [onChange])
+  const handleChange = useCallback(
+    (e: React.ChangeEvent) => {
+      trackAnalytics('changeEvent', e)
+      onChange?.(e)
+    },
+    [onChange]
+  )
 
   return <SomeMemoizedComponent onChange={handleChange} />
 }
