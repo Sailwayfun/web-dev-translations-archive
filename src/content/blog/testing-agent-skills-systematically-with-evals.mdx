@@ -1,0 +1,381 @@
+---
+title: 用 Evals 系統化測試 Agent Skills
+description: 以 Codex 為例，建立可重複的 eval 流程，讓 skill 的改進與回歸一目了然。
+date: 2026-01-30
+tags:
+  - Codex
+  - Evals
+  - Agent
+  - Testing
+---
+
+> 本文是 [Testing Agent Skills Systematically with Evals](https://developers.openai.com/blog/eval-skills/) 的繁體中文翻譯，原文由 Dominik Kundel、Gabriel Chua 撰寫。
+
+當你在迭代像 Codex 這樣的 agent skill 時，很難判斷自己到底是在改進它，還是只是改變了它的行為。一個版本感覺比較快，另一個似乎更可靠，接著就出現回歸：skill 沒有被觸發、跳過了必要步驟，或留下多餘的檔案。
+
+就本質而言，skill 是一組為 LLM 設計的[有組織的提示與指令](https://developers.openai.com/codex/skills)。想要長期穩定地改進 skill，最可靠的方法就是把它當成[其他任何 LLM 應用的提示](https://platform.openai.com/docs/guides/evaluation-best-practices)一樣來評估。
+
+_Evals_（evaluation 的簡稱）用來檢查模型輸出與其產生步驟，是否符合你的預期。與其問「這樣是不是比較好？」（或憑感覺），evals 讓你能問更具體的問題，例如：
+
+- Agent 有沒有啟用 skill？
+- 有沒有執行預期的指令？
+- 產出的內容是否符合你關心的慣例？
+
+更具體地說，一次 eval 就是：一個 prompt → 一次被記錄的執行（trace + artifacts）→ 一小組檢查 → 一個可以長期比較的分數。
+
+實務上，針對 agent skills 的 eval 很像輕量版的端對端測試：你執行 agent、記錄發生了什麼，再用一小組規則來評分結果。
+
+本文會走過一個清楚的模式，用 Codex 來做這件事：先定義成功，接著加入可重現的檢查與 rubric-based grading，讓改進（與回歸）都清清楚楚。
+
+## **1\. 在撰寫 skill 前先定義成功**
+
+在寫 skill 本身之前，先把「成功」用可量測的方式寫下來。一個實用的方法是把檢查拆成幾個類別：
+
+- **結果目標：** 任務有完成嗎？應用程式能跑嗎？
+- **流程目標：** Codex 有沒有啟用 skill，並遵循你預期的工具與步驟？
+- **風格目標：** 輸出有符合你要求的慣例嗎？
+- **效率目標：** 它是否避免亂試（例如不必要的指令或過量的 token 使用）？
+
+這份清單要小而精，聚焦在必須通過的檢查。目標不是一開始就塞進所有偏好，而是先抓住你最在意的行為。
+
+例如本文的示範會評估一個用來建立 demo app 的 skill。有些檢查是具體的：有沒有跑 `npm install`？有沒有建立 `package.json`？同時也會搭配結構化的風格 rubric 來評估慣例與版面配置。
+
+這種混搭是刻意的。你希望有快速、聚焦的訊號，能及早揭露特定回歸，而不是最後只得到一個通過/失敗的結論。
+
+## **2\. 建立 skill**
+
+Codex 的 skill 是一個包含 `SKILL.md` 的目錄，內容有 YAML front matter（`name`、`description`），接著是定義 skill 行為的 Markdown 指令，以及可選的資源或腳本。`name` 和 `description` 的重要性往往比你想像中更高：它們是 Codex 判斷是否啟用 skill、以及何時把 `SKILL.md` 其餘內容注入 agent context 的主要訊號。如果這兩個欄位含糊或過度泛用，skill 就很難穩定觸發。
+
+最快的起手式是用 Codex 內建的 skill creator（[它本身也是一個 skill](https://github.com/openai/skills/tree/main/skills/.system/skill-creator)）。它會引導你完成：
+
+```shell
+$skill-creator
+```
+
+Skill creator 會問你 skill 的用途、該在什麼情境觸發，以及它是純指令型還是有腳本支援（預設建議是純指令型）。想了解更多建立 skill 的方法，可以[參考文件](https://developers.openai.com/codex/skills/create-skill/)。
+
+### **一個範例 skill**
+
+本文使用刻意極簡的例子：一個會以可預測、可重複方式建立小型 React demo app 的 skill。
+
+這個 skill 會：
+
+- 使用 Vite 的 React + TypeScript 模板建立專案
+- 用官方的 Vite plugin 方式設定 Tailwind CSS
+- 強制最小且一致的檔案結構
+- 定義清楚的「完成條件」，讓評估更直接
+
+以下是一份精簡草稿，你可以貼到：
+
+- `.codex/skills/setup-demo-app/SKILL.md`（repo 範圍），或
+- `~/.codex/skills/setup-demo-app/SKILL.md`（使用者範圍）。
+
+```markdown
+---
+name: setup-demo-app
+description: Scaffold a Vite + React + Tailwind demo app with a small, consistent project structure.
+---
+
+## When to use this
+
+Use when you need a fresh demo app for quick UI experiments or reproductions.
+
+## What to build
+
+Create a Vite React TypeScript app and configure Tailwind. Keep it minimal.
+
+Project structure after setup:
+
+- src/
+  - main.tsx (entry)
+  - App.tsx (root UI)
+  - components/
+    - Header.tsx
+    - Card.tsx
+  - index.css (Tailwind import)
+- index.html
+- package.json
+
+Style requirements:
+
+- TypeScript components
+- Functional components only
+- Tailwind classes for styling (no CSS modules)
+- No extra UI libraries
+
+## Steps
+
+1. Scaffold with Vite using the React TS template:
+   npm create vite@latest demo-app -- --template react-ts
+
+2. Install dependencies:
+   cd demo-app
+   npm install
+
+3. Install and configure Tailwind using the Vite plugin.
+   - npm install tailwindcss @tailwindcss/vite
+   - Add the tailwind plugin to vite.config.ts
+   - In src/index.css, replace contents with:
+     @import "tailwindcss";
+
+4. Implement the minimal UI:
+   - Header: app title and short subtitle
+   - Card: reusable card container
+   - App: render Header + 2 Cards with placeholder text
+
+## Definition of done
+
+- npm run dev starts successfully
+- package.json exists
+- src/components/Header.tsx and src/components/Card.tsx exist
+```
+
+這個範例 skill 刻意採取比較有主見的立場。沒有明確限制，就沒有可評估的具體項目。
+
+## **3\. 手動觸發 skill 以暴露隱藏假設**
+
+由於 skill 是否被啟用很依賴 `SKILL.md` 裡的 `name` 和 `description`，第一件要檢查的事就是 `setup-demo-app` 是否會在你預期時觸發。
+
+一開始就明確啟用 skill，透過 `/skills` 斜線指令或使用 `$` 前綴，並在真實 repo 或 scratch directory 裡觀察它會在哪裡出錯。這裡能揭露各種缺口：skill 完全不觸發、觸發過頭，或是雖然有跑但偏離了預期步驟。
+
+在這個階段，你不需要追求速度或精緻度。你要找的是 skill 在做哪些隱含假設，例如：
+
+- **觸發假設：** 像「快速建立 React demo」這種應該要觸發 `setup-demo-app` 的 prompt 卻沒有觸發，或比較泛的 prompt（「加 Tailwind 樣式」）反而意外觸發。
+
+- **環境假設：** skill 假設它是在空目錄執行，或假設系統上有 `npm` 且偏好它勝過其他套件管理器。
+
+- **執行假設：** agent 因為假設依賴已經存在而跳過 `npm install`，或在 Vite 專案建立之前就先配置 Tailwind。
+
+當你準備讓這些執行可重現時，就切換到 `codex exec`。它是為了自動化與 CI 而設計的：進度會輸出到 `stderr`，只有最終結果會寫到 `stdout`，讓執行更容易被腳本化、捕捉與檢視。
+
+預設情況下，`codex exec` 會在受限沙盒中執行。如果任務需要寫檔案，請搭配 `--full-auto`。一般原則是：越自動化越要使用能完成工作的最小權限。
+
+一個基本的手動執行範例如下：
+
+```shell
+codex exec --full-auto \
+  'Use the $setup-demo-app skill to create the project in this directory.'
+```
+
+這第一輪實作比較不是在驗證正確性，而是在發現邊界案例。你在這裡做的每個手動修正，例如補上 `npm install`、修正 Tailwind 設定、或收緊觸發描述，都會成為未來 eval 的候選，讓你在擴大評估前先把行為鎖定。
+
+## **4\. 用小而精的 prompt 集合提早抓回歸**
+
+你不需要很大的 benchmark 才能從 eval 得到價值。對單一 skill 來說，10–20 條 prompt 就足以提早暴露回歸並確認改進。
+
+從一個小型 CSV 開始，隨著你在開發或使用過程中遇到真實失敗再慢慢擴充。每一列都應該代表一種你在乎 `setup-demo-app` 會不會啟用的情境，以及它啟用時成功的樣子。
+
+例如，一份初始的 `evals/setup-demo-app.prompts.csv` 可能長這樣：
+
+```
+id,should_trigger,prompt
+test-01,true,"Create a demo app named `devday-demo` using the $setup-demo-app skill"
+test-02,true,"Set up a minimal React demo app with Tailwind for quick UI experiments"
+test-03,true,"Create a small demo app to showcase the Responses API"
+test-04,false,"Add Tailwind styling to my existing React app"
+```
+
+這些案例各自測試不同面向：
+
+- **明確觸發（`test-01`）**  
+  這個 prompt 直接點名 skill。它確保 Codex 能在被要求時啟用 `setup-demo-app`，並確認對 skill 的名稱、描述或指令的調整，不會破壞直接使用方式。
+
+- **隱含觸發（`test-02`）**  
+   這個 prompt 精準描述了 skill 的目標場景：建立最小的 React + Tailwind demo，但完全不提 skill 的名字。它測試 `SKILL.md` 的名稱與描述是否足夠強，能讓 Codex 自行選用這個 skill。
+
+- **情境化觸發（`test-03`）**  
+  這個 prompt 加入了領域背景（Responses API），但仍需要相同的底層建置。它檢查 skill 是否能在更貼近真實、略帶雜訊的 prompt 中觸發，並確保產出的 app 符合預期結構與慣例。
+
+- **負向對照（`test-04`）**  
+  這個 prompt **不應該** 觸發 `setup-demo-app`。它是常見的相鄰需求（在既有 app 加 Tailwind），很容易不小心和 skill 的描述（React + Tailwind demo）撞到。至少加入一個 `should_trigger=false` 的案例，可以抓出 **false positives**：Codex 過度熱心地啟用 skill、去 scaffold 一個新專案，但使用者其實想要在既有專案上增量修改。
+
+這種混搭是刻意的。有些 eval 用來確認 skill 在被明確啟用時能正確運作；另外一些則要測試它在使用者根本沒提 skill 的真實 prompt 中能否正確啟用。
+
+當你發現觸發失敗、或輸出偏離預期的案例時，就把它們加到新的列。久而久之，這份小 CSV 會變成一份活的紀錄，記下 `setup-demo-app` 必須持續做對的場景。
+
+久而久之，這個小資料集會成為 skill 必須持續做對的場景紀錄。
+
+## **5\. 從輕量、可判定的 graders 開始**
+
+這是評估步驟的核心：使用 `codex exec --json`，讓你的 eval pipeline 可以評分「實際發生了什麼」，而不只是看最終輸出長得對不對。
+
+當你啟用 `--json` 時，`stdout` 會變成 JSONL 的事件串流。這讓你可以直接對你在乎的行為寫可判定的檢查，例如：
+
+- 有沒有執行 `npm install`？
+- 有沒有建立 `package.json`？
+- 是否以預期順序執行了預期指令？
+
+這些檢查刻意保持輕量。它們能在你加入任何模型評分之前，先提供快速、可解釋的訊號。
+
+### **一個極簡的 Node.js runner**
+
+「夠用」的方法大概是這樣：
+
+1. 對每個 prompt 執行 `codex exec --json --full-auto "<prompt>"`
+2. 把 JSONL trace 存到磁碟
+3. 解析 trace，對事件執行可判定的檢查
+
+```javascript
+// evals/run-setup-demo-app-evals.mjs
+
+
+
+
+function runCodex(prompt, outJsonlPath) {
+  const res = spawnSync(
+    "codex",
+    [
+      "exec",
+      "--json", // REQUIRED: emit structured events
+      "--full-auto", // Allow file system changes
+      prompt,
+    ],
+    { encoding: "utf8" }
+  );
+
+  mkdirSync(path.dirname(outJsonlPath), { recursive: true });
+
+  // stdout is JSONL when --json is enabled
+  writeFileSync(outJsonlPath, res.stdout, "utf8");
+
+  return { exitCode: res.status ?? 1, stderr: res.stderr };
+}
+
+function parseJsonl(jsonlText) {
+  return jsonlText
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
+// deterministic check: did the agent run `npm install`?
+function checkRanNpmInstall(events) {
+  return events.some(
+    (e) =>
+      (e.type === "item.started" || e.type === "item.completed") &&
+      e.item?.type === "command_execution" &&
+      typeof e.item?.command === "string" &&
+      e.item.command.includes("npm install")
+  );
+}
+
+// deterministic check: did `package.json` get created?
+function checkPackageJsonExists(projectDir) {
+  return existsSync(path.join(projectDir, "package.json"));
+}
+
+// Example single-case run
+const projectDir = process.cwd();
+const tracePath = path.join(projectDir, "evals", "artifacts", "test-01.jsonl");
+
+const prompt =
+  "Create a demo app named demo-app using the $setup-demo-app skill";
+
+runCodex(prompt, tracePath);
+
+const events = parseJsonl(readFileSync(tracePath, "utf8"));
+
+console.log({
+  ranNpmInstall: checkRanNpmInstall(events),
+  hasPackageJson: checkPackageJsonExists(path.join(projectDir, "demo-app")),
+});
+```
+
+這裡的價值在於一切都是**可判定且可追溯的**。
+
+如果檢查失敗，你可以打開 JSONL 檔案，看到發生了什麼。每次指令執行都會以 `item.*` 事件出現，按順序排列。這讓回歸容易被解釋與修正，這正是你在這個階段最需要的。
+
+## **6\. 用 Codex 做質性檢查與 rubric-based grading**
+
+可判定的檢查回答了「基本動作有做嗎？」但回答不了「有照你想要的方式做嗎？」
+
+像 `setup-demo-app` 這樣的 skill，很多要求是質性的：元件結構、樣式慣例，或 Tailwind 是否按預期配置。這些很難只靠檔案存在與否或指令數量就捕捉到。
+
+一個實務做法是在 eval pipeline 中加入第二步、由模型協助的檢查：
+
+1. 先執行 setup skill（它會把程式寫到磁碟）
+2. 對結果 repo 執行**只讀的風格檢查**
+3. 要求**結構化回應**，讓你的 harness 能一致評分
+
+Codex 透過 `--output-schema` 直接支援這件事，它會把最終回應限制在你定義的 JSON Schema 內。
+
+### **一個小型 rubric schema**
+
+先定義一份小型 schema，涵蓋你在乎的檢查點。例如建立 `evals/style-rubric.schema.json`：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "overall_pass": { "type": "boolean" },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "pass": { "type": "boolean" },
+          "notes": { "type": "string" }
+        },
+        "required": ["id", "pass", "notes"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["overall_pass", "score", "checks"],
+  "additionalProperties": false
+}
+```
+
+這個 schema 提供穩定欄位（`overall_pass`、`score`、逐項結果），你可以把它們組合、diff，並長期追蹤。
+
+### **風格檢查的 prompt**
+
+接著跑第二次 `codex exec`，**只檢視 repo**，並輸出符合 rubric 的 JSON 回應：
+
+```shell
+codex exec \
+  "Evaluate the demo-app repository against these requirements:
+   - Vite + React + TypeScript project exists
+   - Tailwind is configured via @tailwindcss/vite and CSS imports tailwindcss
+   - src/components contains Header.tsx and Card.tsx
+   - Components are functional and styled with Tailwind utility classes (no CSS modules)
+   Return a rubric result as JSON with check ids: vite, tailwind, structure, style." \
+  --output-schema ./evals/style-rubric.schema.json \
+  -o ./evals/artifacts/test-01.style.json
+```
+
+這就是 `--output-schema` 的價值所在。你不用得到難以解析與比較的自由文字，而是得到一個可預期的 JSON 物件，讓你的 eval harness 能對多次執行結果做一致評分。
+
+如果你之後把這套 eval 移進 CI，Codex GitHub Action 也明確支援把 `--output-schema` 透過 `codex-args` 傳入，因此你可以在自動化流程中強制同樣的結構化輸出。
+
+## **7\. 隨著 skill 成熟擴展 evals**
+
+當核心迴圈建立之後，你就可以朝最重要的方向延伸 evals。從小開始，只有在能提升信心時再加深檢查。
+
+舉幾個例子：
+
+- **指令數量與亂跑：** 統計 JSONL trace 內的 `command_execution` 事件數，抓出 agent 開始打轉或重複執行指令的回歸。`turn.completed` 事件也提供 token 使用量。
+
+- **Token 預算：** 追蹤 `usage.input_tokens` 與 `usage.output_tokens`，觀察意外的 prompt 膨脹，並比較不同版本的效率。
+
+- **Build 檢查：** skill 完成後跑 `npm run build`。這是一個更強的端對端訊號，可以抓出壞掉的 import 或不正確的工具設定。
+
+- **執行期 smoke checks：** 啟動 `npm run dev`，再用 `curl` 打到 dev server，或如果你已有 Playwright，就跑輕量測試。選擇性使用，它會增加信心但也會花時間。
+
+- **Repo 乾淨度：** 確認執行後沒有多餘檔案，且 `git status --porcelain` 是空的（或符合明確的允許清單）。
+
+- **沙盒與權限回歸：** 驗證 skill 仍能在不提升權限的狀況下運作。當你開始自動化時，最小權限原則尤其重要。
+
+模式是一致的：先從能解釋行為的快速檢查開始，再只在能降低風險時加入較慢、較重的檢查。
+
+## **8\. 重點整理**
+
+這個小型的 `setup-demo-app` 例子說明了從「感覺更好」到「可證明」的轉變：執行 agent、記錄發生的事，再用小規模的檢查來評分。只要這個迴圈存在，每次微調就更容易驗證，每次回歸也更清楚。重點如下：
+
+- **衡量重要的東西。** 好的 eval 讓回歸清楚、失敗可解釋。
+- **從可檢查的完成定義開始。** 先用 `$skill-creator` 起手，再收緊指令，讓成功變得毫不含糊。
+- **以行為為準。** 用 `codex exec --json` 捕捉 JSONL，並對 `command_execution` 事件寫可判定的檢查。
+- **規則不足的地方交給 Codex。** 用 `--output-schema` 加入結構化的 rubric-based 評分，可靠地檢查風格與慣例。
+- **讓真實失敗驅動覆蓋。** 每次手動修正都是訊號，把它變成測試，讓 skill 持續做對。
