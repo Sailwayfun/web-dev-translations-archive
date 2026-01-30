@@ -16,30 +16,32 @@ const posts = (await getCollection('blog')).sort(
       A single place to keep translated essays in a calm, readable frame.
     </p>
 
-    {posts.length ? (
-      <div class="post-grid" style="margin-top: 2.5rem;">
-        {posts.map((post) => (
-          <article class="post-card">
-            <h2 class="post-title">{post.data.title}</h2>
-            <p class="post-desc">{post.data.description}</p>
-            <div class="meta">
-              <span>{post.data.date.toLocaleDateString('zh-TW')}</span>
-              {post.data.tags ? (
-                <span class="tags">
-                  {post.data.tags.map((tag) => (
-                    <span class="tag">{tag}</span>
-                  ))}
-                </span>
-              ) : null}
-            </div>
-            <a class="post-link" href={`/blog/${post.slug}`}>
-              Read the full article →
-            </a>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p class="prose">No posts yet.</p>
-    )}
+    {
+      posts.length ? (
+        <div class="post-grid" style="margin-top: 2.5rem;">
+          {posts.map((post) => (
+            <article class="post-card">
+              <h2 class="post-title">{post.data.title}</h2>
+              <p class="post-desc">{post.data.description}</p>
+              <div class="meta">
+                <span>{post.data.date.toLocaleDateString('zh-TW')}</span>
+                {post.data.tags ? (
+                  <span class="tags">
+                    {post.data.tags.map((tag) => (
+                      <span class="tag">{tag}</span>
+                    ))}
+                  </span>
+                ) : null}
+              </div>
+              <a class="post-link" href={`/blog/${post.slug}`}>
+                Read the full article →
+              </a>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p class="prose">No posts yet.</p>
+      )
+    }
   </section>
 </BaseLayout>
